@@ -8,9 +8,7 @@ A deployable-template for a personal Strava dashboard. One-time login claims the
 
 ## Deploy to Cloudflare Workers
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/strava-board)
-
-> Replace `YOUR_USERNAME/strava-board` in the button URL above with your actual GitHub repo once you fork this repository.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shaikzhafir/strava-board)
 
 Clicking the button will:
 
