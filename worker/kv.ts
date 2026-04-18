@@ -10,6 +10,7 @@ export const KEY = {
   LOCK_SYNC: "lock:sync",
   STRAVA_APP: "config:strava_app",
   SESSION_SECRET: "config:session_secret",
+  ADMIN: "config:admin",
 } as const;
 
 export async function getOwner(env: Env): Promise<number | null> {

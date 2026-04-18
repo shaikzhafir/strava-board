@@ -23,6 +23,20 @@ export interface StravaAppConfig {
   client_secret: string;
 }
 
+/**
+ * Admin credential record stored in KV. The operator's password is never
+ * stored in plaintext — only the PBKDF2-SHA256 derived key (base64url) and
+ * its salt (base64url). `iterations` is persisted so we can safely bump the
+ * cost parameter in the future without invalidating older records.
+ */
+export interface AdminRecord {
+  username: string;
+  salt: string;
+  hash: string;
+  iterations: number;
+  created_at: number;
+}
+
 export interface StravaAthlete {
   id: number;
   username: string | null;

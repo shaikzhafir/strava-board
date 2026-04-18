@@ -8,6 +8,11 @@ import {
 } from "./kv";
 import { runSync } from "./sync";
 import { getSetupStatus, handleSetupSave } from "./setup";
+import {
+  handleAdminLogin,
+  handleAdminLogout,
+  handleAdminRegister,
+} from "./admin";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -30,6 +35,17 @@ export default {
       return handleSetupSave(req, env);
     }
 
+    // --- Admin auth (gates the setup wizard during pre-claim) ---
+    if (pathname === "/api/admin/register" && method === "POST") {
+      return handleAdminRegister(req, env);
+    }
+    if (pathname === "/api/admin/login" && method === "POST") {
+      return handleAdminLogin(req, env);
+    }
+    if (pathname === "/api/admin/logout" && method === "POST") {
+      return handleAdminLogout(req);
+    }
+
     // --- Auth routes ---
     if (pathname === "/auth/strava/login" && method === "GET") {
       return loginRedirect(req, env);
@@ -38,7 +54,7 @@ export default {
       return handleCallback(req, env, ctx);
     }
     if (pathname === "/auth/logout" && method === "POST") {
-      return handleLogout();
+      return handleLogout(req);
     }
 
     // --- API routes (publicly readable, single-user model) ---

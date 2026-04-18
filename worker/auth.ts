@@ -4,6 +4,7 @@ import { getOwner, setOwner, setTokens } from "./kv";
 import { sign, sessionCookie, clearSessionCookie, parseCookie, verify } from "./session";
 import { runSync } from "./sync";
 import { getAppUrl, getSessionSecret, getStravaAppConfig } from "./config";
+import { getAdmin, requireAdmin } from "./admin";
 
 const AUTHORIZE_URL = "https://www.strava.com/oauth/authorize";
 const SCOPES = "read,activity:read_all";
@@ -16,6 +17,27 @@ export async function loginRedirect(req: Request, env: Env): Promise<Response> {
       { status: 409 },
     );
   }
+
+  // Gate the Strava OAuth initiation while the instance has not been claimed.
+  // This closes the claim race: an attacker who beats the operator to the URL
+  // can no longer click "Connect with Strava" to seize the instance. Once the
+  // instance IS claimed the callback itself rejects non-owner athletes, so no
+  // further admin gate is needed here.
+  const owner = await getOwner(env);
+  if (!owner) {
+    const admin = await getAdmin(env);
+    if (!admin) {
+      return new Response(
+        "Register an admin account before connecting Strava. Open the home page to set one up.",
+        { status: 401 },
+      );
+    }
+    const adminAuthed = await requireAdmin(req, env);
+    if (!adminAuthed) {
+      return new Response("Sign in as the admin before connecting Strava.", { status: 401 });
+    }
+  }
+
   const appUrl = getAppUrl(env, req);
   const params = new URLSearchParams({
     client_id: cfg.client_id,
@@ -67,13 +89,13 @@ export async function handleCallback(
   ctx.waitUntil(runSync(env).catch(() => {}));
 
   const headers = new Headers({ Location: "/" });
-  headers.append("Set-Cookie", sessionCookie(sid));
+  headers.append("Set-Cookie", sessionCookie(sid, req));
   return new Response(null, { status: 302, headers });
 }
 
-export function handleLogout(): Response {
+export function handleLogout(req: Request): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
-  headers.append("Set-Cookie", clearSessionCookie());
+  headers.append("Set-Cookie", clearSessionCookie(req));
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
 }
 

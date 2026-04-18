@@ -38,15 +38,25 @@ describe("cookie helpers", () => {
     expect(parseCookie(null, "sid")).toBeNull();
   });
 
-  it("sessionCookie has HttpOnly+Secure+SameSite flags", () => {
-    const c = sessionCookie("tok");
+  it("sessionCookie has HttpOnly+Secure+SameSite flags over https", () => {
+    const req = new Request("https://example.com/");
+    const c = sessionCookie("tok", req);
     expect(c).toMatch(/sid=tok/);
     expect(c).toMatch(/HttpOnly/);
     expect(c).toMatch(/Secure/);
     expect(c).toMatch(/SameSite=Lax/);
   });
 
+  it("sessionCookie drops Secure for http://localhost so local dev works", () => {
+    const req = new Request("http://localhost:5173/");
+    const c = sessionCookie("tok", req);
+    expect(c).toMatch(/sid=tok/);
+    expect(c).toMatch(/HttpOnly/);
+    expect(c).not.toMatch(/Secure/);
+  });
+
   it("clearSessionCookie sets Max-Age=0", () => {
-    expect(clearSessionCookie()).toMatch(/Max-Age=0/);
+    const req = new Request("https://example.com/");
+    expect(clearSessionCookie(req)).toMatch(/Max-Age=0/);
   });
 });

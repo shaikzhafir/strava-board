@@ -6,6 +6,7 @@ import SummaryStats from "./components/SummaryStats";
 import DistanceChart from "./components/DistanceChart";
 import PaceChart from "./components/PaceChart";
 import SetupWizard from "./components/SetupWizard";
+import AdminAuth from "./components/AdminAuth";
 
 interface State {
   setup: SetupStatus | null;
@@ -33,8 +34,8 @@ export default function App() {
     try {
       const setup = await api.setupStatus();
       // If Strava creds aren't configured yet, skip the data fetch — the board
-      // is always empty in that state and the wizard takes over the UI.
-      if (!setup.configured) {
+      // is always empty in that state and the admin/setup UI takes over.
+      if (!setup.configured || !setup.claimed) {
         setState({
           setup,
           me: null,
@@ -79,10 +80,35 @@ export default function App() {
 
   if (state.loading) return <div className="page"><p>Loading…</p></div>;
 
-  if (state.setup && !state.setup.configured) {
+  // Pre-setup gate: while the instance is un-claimed we require an admin
+  // session. The admin is registered on first access and then must log in
+  // to see the Strava setup wizard / Connect button.
+  if (state.setup && (!state.setup.configured || !state.setup.claimed)) {
+    if (!state.setup.admin_authenticated) {
+      return (
+        <div className="page">
+          <AdminAuth status={state.setup} onAuthenticated={load} />
+        </div>
+      );
+    }
+    if (!state.setup.configured) {
+      return (
+        <div className="page">
+          <SetupWizard status={state.setup} onConfigured={load} />
+        </div>
+      );
+    }
+    // Configured but not yet claimed — show the Strava connect button.
     return (
-      <div className="page">
-        <SetupWizard status={state.setup} onConfigured={load} />
+      <div className="page center">
+        <h1>Strava Activity Board</h1>
+        <p className="muted">
+          Signed in as <strong>{state.setup.admin_username}</strong>. Authorize
+          Strava to finish claiming this instance.
+        </p>
+        <a className="btn primary" href="/auth/strava/login">
+          Connect with Strava
+        </a>
       </div>
     );
   }

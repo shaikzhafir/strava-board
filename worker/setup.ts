@@ -7,21 +7,33 @@ import {
   setStravaAppConfig,
 } from "./config";
 import { requireOwner } from "./auth";
+import { getAdmin, requireAdmin } from "./admin";
 
 export interface SetupStatus {
   configured: boolean;
   claimed: boolean;
   app_url: string;
   callback_domain: string;
+  admin_registered: boolean;
+  admin_authenticated: boolean;
+  admin_username: string | null;
 }
 
 export async function getSetupStatus(req: Request, env: Env): Promise<SetupStatus> {
-  const [cfg, owner] = await Promise.all([getStravaAppConfig(env), getOwner(env)]);
+  const [cfg, owner, admin, adminAuthed] = await Promise.all([
+    getStravaAppConfig(env),
+    getOwner(env),
+    getAdmin(env),
+    requireAdmin(req, env),
+  ]);
   return {
     configured: !!cfg,
     claimed: !!owner,
     app_url: getAppUrl(env, req),
     callback_domain: getCallbackDomain(env, req),
+    admin_registered: !!admin,
+    admin_authenticated: !!adminAuthed,
+    admin_username: adminAuthed?.username ?? null,
   };
 }
 
@@ -38,19 +50,41 @@ function isPlausibleClientSecret(v: unknown): v is string {
 /**
  * Save Strava app credentials.
  *
- * Access control:
- *   - While the instance is un-claimed (no Strava owner has logged in yet),
- *     any visitor can POST. This is the "claim race" window — the legitimate
- *     operator should complete setup immediately after deploy.
- *   - Once an owner has claimed the instance, only the owner (valid session
- *     cookie) can update credentials (e.g. to rotate a rolled secret).
+ * Access control (tightened to close the pre-setup claim race):
+ *   - If the instance has NOT been claimed yet by a Strava athlete, an admin
+ *     account MUST be registered and the caller MUST present a valid
+ *     `admin_sid` cookie. First-run visitors see a register form before this
+ *     endpoint is reachable.
+ *   - Once an athlete has claimed the instance, the original behaviour is
+ *     preserved: only the owner (valid Strava `sid` cookie) can rotate the
+ *     credentials. The admin session also remains valid at that point for
+ *     operational convenience.
  */
 export async function handleSetupSave(req: Request, env: Env): Promise<Response> {
   const owner = await getOwner(env);
+
   if (owner) {
-    const authed = await requireOwner(req, env);
-    if (!authed) {
-      return jsonError("This instance is already claimed; sign in as the owner to update credentials.", 403);
+    const [ownerAuthed, adminAuthed] = await Promise.all([
+      requireOwner(req, env),
+      requireAdmin(req, env),
+    ]);
+    if (!ownerAuthed && !adminAuthed) {
+      return jsonError(
+        "This instance is already claimed; sign in as the owner to update credentials.",
+        403,
+      );
+    }
+  } else {
+    const admin = await getAdmin(env);
+    if (!admin) {
+      return jsonError(
+        "Register an admin account before configuring Strava credentials.",
+        401,
+      );
+    }
+    const adminAuthed = await requireAdmin(req, env);
+    if (!adminAuthed) {
+      return jsonError("Sign in as the admin to configure this instance.", 401);
     }
   }
 

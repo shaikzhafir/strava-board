@@ -31,14 +31,25 @@ export interface SessionPayload {
   iat: number;
 }
 
-export async function sign(payload: SessionPayload, secret: string): Promise<string> {
+export interface AdminSessionPayload {
+  username: string;
+  iat: number;
+}
+
+export async function sign<T extends object = SessionPayload>(
+  payload: T,
+  secret: string,
+): Promise<string> {
   const body = b64url(enc.encode(JSON.stringify(payload)));
   const key = await hmacKey(secret);
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(body)));
   return `${body}.${b64url(sig)}`;
 }
 
-export async function verify(token: string, secret: string): Promise<SessionPayload | null> {
+export async function verify<T = SessionPayload>(
+  token: string,
+  secret: string,
+): Promise<T | null> {
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [body, sig] = parts;
@@ -46,18 +57,52 @@ export async function verify(token: string, secret: string): Promise<SessionPayl
   const ok = await crypto.subtle.verify("HMAC", key, b64urlDecode(sig), enc.encode(body));
   if (!ok) return null;
   try {
-    return JSON.parse(dec.decode(b64urlDecode(body))) as SessionPayload;
+    return JSON.parse(dec.decode(b64urlDecode(body))) as T;
   } catch {
     return null;
   }
 }
 
-export function sessionCookie(token: string, maxAgeSeconds = 60 * 60 * 24 * 30): string {
-  return `sid=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=${maxAgeSeconds}`;
+export { b64url, b64urlDecode };
+
+/**
+ * Drop the `Secure` flag when the worker is being accessed over plain HTTP
+ * (local dev on http://localhost, http://127.0.0.1, or a bare IP). Browsers
+ * refuse to store a Secure cookie set over an insecure origin, which would
+ * silently break the admin / OAuth flows during `npm run dev`. In production
+ * the request is always https and the flag stays on.
+ */
+function isSecureOrigin(req: Request): boolean {
+  return new URL(req.url).protocol === "https:";
 }
 
-export function clearSessionCookie(): string {
-  return `sid=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`;
+function cookieAttrs(req: Request, maxAgeSeconds: number): string {
+  const base = `Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+  return isSecureOrigin(req) ? `${base}; Secure` : base;
+}
+
+export function sessionCookie(
+  token: string,
+  req: Request,
+  maxAgeSeconds = 60 * 60 * 24 * 30,
+): string {
+  return `sid=${token}; ${cookieAttrs(req, maxAgeSeconds)}`;
+}
+
+export function clearSessionCookie(req: Request): string {
+  return `sid=; ${cookieAttrs(req, 0)}`;
+}
+
+export function adminSessionCookie(
+  token: string,
+  req: Request,
+  maxAgeSeconds = 60 * 60 * 24 * 30,
+): string {
+  return `admin_sid=${token}; ${cookieAttrs(req, maxAgeSeconds)}`;
+}
+
+export function clearAdminSessionCookie(req: Request): string {
+  return `admin_sid=; ${cookieAttrs(req, 0)}`;
 }
 
 export function parseCookie(header: string | null, name: string): string | null {

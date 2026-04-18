@@ -53,12 +53,44 @@ export interface SetupStatus {
   claimed: boolean;
   app_url: string;
   callback_domain: string;
+  admin_registered: boolean;
+  admin_authenticated: boolean;
+  admin_username: string | null;
+}
+
+export interface AdminAuthResult {
+  ok: boolean;
+  status: number;
+  error?: string;
+  username?: string;
 }
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
   return (await res.json()) as T;
+}
+
+async function postAuth(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<AdminAuthResult> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const parsed = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    username?: string;
+  };
+  return {
+    ok: res.ok && parsed.ok !== false,
+    status: res.status,
+    error: parsed.error,
+    username: parsed.username,
+  };
 }
 
 export const api = {
@@ -72,6 +104,13 @@ export const api = {
   },
   logout: async () => fetch("/auth/logout", { method: "POST" }),
   setupStatus: () => getJson<SetupStatus>("/api/setup"),
+  adminRegister: (username: string, password: string) =>
+    postAuth("/api/admin/register", { username, password }),
+  adminLogin: (username: string, password: string) =>
+    postAuth("/api/admin/login", { username, password }),
+  adminLogout: async () => {
+    await fetch("/api/admin/logout", { method: "POST" });
+  },
   saveSetup: async (client_id: string, client_secret: string) => {
     const res = await fetch("/api/setup", {
       method: "POST",

@@ -23,16 +23,19 @@ You will **not** be asked for any secrets or API keys during this flow.
 
 ### Setup (one-time, takes ~60 seconds)
 
-Once the first deploy finishes, open your Worker URL (e.g. `https://strava-board.your-subdomain.workers.dev`). You'll land on a setup wizard that:
+Once the first deploy finishes, open your Worker URL (e.g. `https://strava-board.your-subdomain.workers.dev`). You'll land on a short gated flow:
 
-1. Shows you the exact **Authorization Callback Domain** to paste into Strava (with a one-click copy button).
-2. Links you to <https://www.strava.com/settings/api> to create your Strava app.
-3. Collects your Strava **Client ID** + **Client Secret** and stores them in this Worker's KV namespace.
-4. Once saved, shows **Connect with Strava**. The first athlete to log in becomes the owner of this instance; a different Strava account attempting to log in afterwards is rejected with 403.
+1. **Claim the instance.** Before anything else you're asked to register an admin account — your **GitHub username** plus a password of your choice. This closes the "someone else hits the URL before you do" window, so complete it immediately after your deploy finishes. The password is hashed with PBKDF2-SHA256 (210k iterations) before being saved to KV; it's never stored in plaintext.
+2. Shows you the exact **Authorization Callback Domain** to paste into Strava (with a one-click copy button).
+3. Links you to <https://www.strava.com/settings/api> to create your Strava app.
+4. Collects your Strava **Client ID** + **Client Secret** and stores them in this Worker's KV namespace.
+5. Once saved, shows **Connect with Strava**. The first athlete to log in becomes the owner of this instance; a different Strava account attempting to log in afterwards is rejected with 403.
 
-That's it — the board is populated immediately via an initial sync, and the cron trigger keeps it fresh.
+That's it — the board is populated immediately via an initial sync, and the cron trigger keeps it fresh. Once an athlete has claimed the instance the board is publicly viewable and the admin login is no longer required to read it.
 
-> Want to rotate your Strava secret later? Re-open the setup wizard as the owner and re-enter the new value. Anonymous writes are refused once the instance is claimed.
+> Want to rotate your Strava secret later? Re-open the setup wizard as the owner (Strava session) or as the admin (username + password) and re-enter the new value. Anonymous writes are always refused.
+
+> Forgot your admin password? Delete the `config:admin` key from the Worker's KV namespace and the home page will drop you back into the first-run register form: `wrangler kv key delete --binding=STRAVA_KV "config:admin"`.
 
 ---
 
@@ -126,6 +129,7 @@ All state lives in a single KV namespace (`STRAVA_KV`):
 | Key | Purpose |
 | --- | --- |
 | `config:strava_app` | Strava Client ID + Client Secret (set by the wizard) |
+| `config:admin` | Admin account record: GitHub username + PBKDF2-hashed password (set on first access) |
 | `config:session_secret` | Auto-generated HMAC key for session cookies |
 | `owner:athlete_id` | The single claimed athlete ID |
 | `tokens:<id>` | OAuth access + refresh tokens |
@@ -139,8 +143,9 @@ Want to hand an instance off to a different Strava account or start over? From t
 
 ```sh
 npx wrangler kv key delete --binding=STRAVA_KV "owner:athlete_id"
-# Optionally also clear the app config and tokens:
+# Optionally also clear the app config, admin account, and tokens:
 npx wrangler kv key delete --binding=STRAVA_KV "config:strava_app"
+npx wrangler kv key delete --binding=STRAVA_KV "config:admin"
 ```
 
 The next visit to the Worker URL will drop you back into the setup wizard.
