@@ -8,6 +8,8 @@ export const KEY = {
   CACHE_STATS: "cache:stats",
   LAST_SYNCED_AT: "cache:lastSyncedAt",
   LOCK_SYNC: "lock:sync",
+  STRAVA_APP: "config:strava_app",
+  SESSION_SECRET: "config:session_secret",
 } as const;
 
 export async function getOwner(env: Env): Promise<number | null> {

@@ -1,16 +1,26 @@
 export interface Env {
   STRAVA_KV: KVNamespace;
   ASSETS: Fetcher;
-  APP_URL: string;
-  STRAVA_CLIENT_ID: string;
-  STRAVA_CLIENT_SECRET: string;
-  SESSION_SECRET: string;
+  // All of the following are optional. They exist only as a fallback for local
+  // development via `.dev.vars` or for operators who prefer setting them as
+  // wrangler secrets. In production, the recommended flow is to leave these
+  // unset and configure Strava credentials via the in-app setup wizard, which
+  // stores them in KV. See worker/config.ts.
+  APP_URL?: string;
+  STRAVA_CLIENT_ID?: string;
+  STRAVA_CLIENT_SECRET?: string;
+  SESSION_SECRET?: string;
 }
 
 export interface StravaTokens {
   access_token: string;
   refresh_token: string;
   expires_at: number;
+}
+
+export interface StravaAppConfig {
+  client_id: string;
+  client_secret: string;
 }
 
 export interface StravaAthlete {

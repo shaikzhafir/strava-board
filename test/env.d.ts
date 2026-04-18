@@ -9,8 +9,8 @@ declare module "cloudflare:test" {
 interface Env {
   STRAVA_KV: KVNamespace;
   ASSETS: Fetcher;
-  APP_URL: string;
-  STRAVA_CLIENT_ID: string;
-  STRAVA_CLIENT_SECRET: string;
-  SESSION_SECRET: string;
+  APP_URL?: string;
+  STRAVA_CLIENT_ID?: string;
+  STRAVA_CLIENT_SECRET?: string;
+  SESSION_SECRET?: string;
 }

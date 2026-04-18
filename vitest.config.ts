@@ -12,7 +12,9 @@ export default defineWorkersConfig({
           compatibilityFlags: ["nodejs_compat"],
           kvNamespaces: ["STRAVA_KV"],
           bindings: {
-            APP_URL: "http://localhost:5173",
+            // APP_URL intentionally omitted — the worker derives its public
+            // origin from the incoming request so tests exercise the same path
+            // as production.
             STRAVA_CLIENT_ID: "test-client-id",
             STRAVA_CLIENT_SECRET: "test-client-secret",
             SESSION_SECRET: "test-session-secret-please-change",

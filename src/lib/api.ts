@@ -48,6 +48,13 @@ export interface Me {
   lastSyncedAt: string | null;
 }
 
+export interface SetupStatus {
+  configured: boolean;
+  claimed: boolean;
+  app_url: string;
+  callback_domain: string;
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
@@ -64,4 +71,14 @@ export const api = {
     return { ok: res.ok, status: res.status };
   },
   logout: async () => fetch("/auth/logout", { method: "POST" }),
+  setupStatus: () => getJson<SetupStatus>("/api/setup"),
+  saveSetup: async (client_id: string, client_secret: string) => {
+    const res = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id, client_secret }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    return { ok: res.ok && body.ok !== false, status: res.status, error: body.error };
+  },
 };

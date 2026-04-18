@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Activity, type Me, type Stats } from "./lib/api";
+import { api, type Activity, type Me, type SetupStatus, type Stats } from "./lib/api";
 import { timeAgo } from "./lib/format";
 import ActivityList from "./components/ActivityList";
 import SummaryStats from "./components/SummaryStats";
 import DistanceChart from "./components/DistanceChart";
 import PaceChart from "./components/PaceChart";
+import SetupWizard from "./components/SetupWizard";
 
 interface State {
+  setup: SetupStatus | null;
   me: Me | null;
   activities: Activity[];
   stats: Stats | null;
@@ -15,6 +17,7 @@ interface State {
 }
 
 const INITIAL: State = {
+  setup: null,
   me: null,
   activities: [],
   stats: null,
@@ -28,12 +31,26 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
+      const setup = await api.setupStatus();
+      // If Strava creds aren't configured yet, skip the data fetch — the board
+      // is always empty in that state and the wizard takes over the UI.
+      if (!setup.configured) {
+        setState({
+          setup,
+          me: null,
+          activities: [],
+          stats: null,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
       const [me, activities, stats] = await Promise.all([
         api.me(),
         api.activities(),
         api.stats(),
       ]);
-      setState({ me, activities, stats, loading: false, error: null });
+      setState({ setup, me, activities, stats, loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -62,6 +79,14 @@ export default function App() {
 
   if (state.loading) return <div className="page"><p>Loading…</p></div>;
 
+  if (state.setup && !state.setup.configured) {
+    return (
+      <div className="page">
+        <SetupWizard status={state.setup} onConfigured={load} />
+      </div>
+    );
+  }
+
   const connected = !!state.me?.athlete;
 
   if (!connected) {
@@ -69,8 +94,7 @@ export default function App() {
       <div className="page center">
         <h1>Strava Activity Board</h1>
         <p className="muted">
-          This board isn't connected to a Strava account yet. Click below to authorize and
-          claim this instance.
+          Strava credentials are configured. Click below to authorize and claim this instance.
         </p>
         <a className="btn primary" href="/auth/strava/login">
           Connect with Strava

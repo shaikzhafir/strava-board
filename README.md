@@ -4,7 +4,8 @@ A deployable-template for a personal Strava dashboard. One-time login claims the
 
 - **Runtime:** Cloudflare Workers (with Assets + KV + Cron Triggers)
 - **Frontend:** React + Vite, bundled via `@cloudflare/vite-plugin`
-- **Storage:** Cloudflare KV (OAuth tokens + cached Strava data)
+- **Storage:** Cloudflare KV (OAuth tokens + cached Strava data + app config)
+- **Setup:** zero deploy-time secrets — credentials are configured after deploy through an in-app wizard.
 
 ## Deploy to Cloudflare Workers
 
@@ -14,31 +15,30 @@ Clicking the button will:
 
 1. Fork this repo into your GitHub account.
 2. Connect the fork to your Cloudflare account.
-3. Provision the KV namespace declared in `wrangler.jsonc` (binding: `STRAVA_KV`).
-4. Build (`npm run build`) and deploy the Worker.
+3. Auto-provision the KV namespace declared in `wrangler.jsonc` (binding: `STRAVA_KV`).
+4. Install the cron trigger (`*/30 * * * *`).
+5. Build (`npm run build`) and deploy the Worker.
 
-After the initial deploy completes, you still need to do three things before the app works. See **Post-deploy setup** below.
+You will **not** be asked for any secrets or API keys during this flow.
 
-### Post-deploy setup
+### Setup (one-time, takes ~60 seconds)
 
-1. **Create a Strava API application** at <https://www.strava.com/settings/api>. Set **Authorization Callback Domain** to the hostname of your Worker (e.g. `strava-cloudflare-workers.your-subdomain.workers.dev`, no scheme). Note down the Client ID and Client Secret.
+Once the first deploy finishes, open your Worker URL (e.g. `https://strava-board.your-subdomain.workers.dev`). You'll land on a setup wizard that:
 
-2. **Set `APP_URL`** in `wrangler.jsonc` to your Worker's URL (no trailing slash), commit, and push — the connected Cloudflare build will redeploy automatically. Alternatively update `vars.APP_URL` via the Cloudflare dashboard under *Workers → your worker → Settings → Variables*.
+1. Shows you the exact **Authorization Callback Domain** to paste into Strava (with a one-click copy button).
+2. Links you to <https://www.strava.com/settings/api> to create your Strava app.
+3. Collects your Strava **Client ID** + **Client Secret** and stores them in this Worker's KV namespace.
+4. Once saved, shows **Connect with Strava**. The first athlete to log in becomes the owner of this instance; a different Strava account attempting to log in afterwards is rejected with 403.
 
-3. **Set secrets** via `wrangler secret put` (or the Cloudflare dashboard):
-   ```sh
-   npx wrangler secret put STRAVA_CLIENT_ID
-   npx wrangler secret put STRAVA_CLIENT_SECRET
-   npx wrangler secret put SESSION_SECRET   # use: openssl rand -hex 32
-   ```
+That's it — the board is populated immediately via an initial sync, and the cron trigger keeps it fresh.
 
-4. **Visit your Worker URL** and click **Connect with Strava**. The first athlete to log in becomes the owner of this instance; a different Strava account attempting to log in afterwards is rejected with 403. Once claimed, the board is populated immediately via an initial sync, and the cron trigger keeps it fresh (default: every 30 minutes).
+> Want to rotate your Strava secret later? Re-open the setup wizard as the owner and re-enter the new value. Anonymous writes are refused once the instance is claimed.
 
 ---
 
 ## Deploy manually (CLI)
 
-Prefer the CLI? Follow these steps instead of the deploy button above.
+Prefer the CLI? It's also zero-prompt — you don't need a Strava app before deploying.
 
 ### 1. Clone & install
 
@@ -47,73 +47,43 @@ git clone <this-repo> strava-board && cd strava-board
 npm install
 ```
 
-### 2. Create a Strava API application
-
-Go to <https://www.strava.com/settings/api> and create a new application.
-
-- **Authorization Callback Domain:** set to `<your-worker>.workers.dev` (or your custom domain, without scheme).
-- Note the **Client ID** and **Client Secret** — you will need them below.
-
-### 3. Install wrangler and log in to Cloudflare
-
-```sh
-npm i -g wrangler    # or use `npx wrangler` everywhere
-wrangler login
-```
-
-### 4. Create a KV namespace and wire it up
+### 2. Create a KV namespace and wire it up
 
 ```sh
 npx wrangler kv namespace create STRAVA_KV
 ```
 
-Copy the `id` from the output into `wrangler.jsonc`:
+Copy the `id` from the output into `wrangler.jsonc` (replacing `"<your-kv-namespace-id>"`).
 
-```jsonc
-"kv_namespaces": [
-  { "binding": "STRAVA_KV", "id": "<paste-id-here>" }
-]
-```
-
-### 5. Set `APP_URL`
-
-In `wrangler.jsonc`, set `vars.APP_URL` to your Worker's public URL (no trailing slash), e.g.:
-
-```jsonc
-"vars": { "APP_URL": "https://strava-cloudflare-workers.example.workers.dev" }
-```
-
-### 6. Set secrets
-
-```sh
-npx wrangler secret put STRAVA_CLIENT_ID
-npx wrangler secret put STRAVA_CLIENT_SECRET
-npx wrangler secret put SESSION_SECRET   # use: openssl rand -hex 32
-```
-
-### 7. Deploy
+### 3. Deploy
 
 ```sh
 npm run deploy
 ```
 
-### 8. Claim the instance
+### 4. Visit your Worker URL and complete the setup wizard
 
-Visit your Worker URL and click **Connect with Strava**. The first athlete to log in becomes the owner. A second Strava account attempting to log in is rejected with 403.
-
-Once claimed, the board is populated immediately via an initial sync. After that, the cron trigger keeps it fresh automatically (default: every 30 minutes).
+The wizard handles everything else (Strava app creation instructions, callback domain, saving the credentials, and claiming the instance via OAuth login).
 
 ## Local development
 
 ```sh
-cp .dev.vars.example .dev.vars
-# fill in STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, SESSION_SECRET
-# keep APP_URL=http://localhost:5173
-
 npm run dev
 ```
 
-For local OAuth to work, add `localhost` as a second callback domain in your Strava app settings.
+Open the dev server URL and walk through the same setup wizard. For the Strava OAuth redirect to work locally, add your dev origin's hostname (typically `localhost`) as a second **Authorization Callback Domain** on your Strava app page. Strava supports multiple callback domains per app, so you can use the same app for local dev and production.
+
+### Optional: skip the wizard in local dev
+
+If you'd rather not run through the wizard on every `npm run dev`, create a gitignored `.dev.vars` at the repo root with:
+
+```sh
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+# SESSION_SECRET is auto-generated on first request; you can override it here too.
+```
+
+These env vars are read only as a **fallback** when KV config is absent, so they never interfere with production KV-stored credentials.
 
 ## Tuning the sync frequency
 
@@ -131,7 +101,7 @@ Each sync uses ~3 Strava API calls. Strava's per-app quota is 2000 calls/day, so
 npm test
 ```
 
-The suite covers session signing/verification, polyline decoding, format helpers, KV helpers, the sync pipeline (with mocked Strava), OAuth callback (owner claim, rejection, token rotation), and the HTTP router.
+The suite covers session signing/verification, polyline decoding, format helpers, KV helpers, the sync pipeline (with mocked Strava), OAuth callback (owner claim, rejection, token rotation), the setup wizard API (validation + claim gating), and the HTTP router.
 
 ## Architecture
 
@@ -140,12 +110,40 @@ The suite covers session signing/verification, polyline decoding, format helpers
 Cloudflare Worker ─────┤
                        ├── /auth/* ──► Strava OAuth ──► KV (tokens, owner)
                        │
+                       ├── /api/setup ──► KV (app config: strava creds)
+                       │
 Browser ───────────────┴── /api/* ──► KV (reads cache only — never Strava)
                        │
-                       └── /* ──► Static assets (React SPA)
+                       └── /* ──► Static assets (React SPA + setup wizard)
 ```
 
 Strava is only called from the OAuth callback and the cron handler. Browser page loads read entirely from KV.
+
+### Where is everything stored?
+
+All state lives in a single KV namespace (`STRAVA_KV`):
+
+| Key | Purpose |
+| --- | --- |
+| `config:strava_app` | Strava Client ID + Client Secret (set by the wizard) |
+| `config:session_secret` | Auto-generated HMAC key for session cookies |
+| `owner:athlete_id` | The single claimed athlete ID |
+| `tokens:<id>` | OAuth access + refresh tokens |
+| `cache:athlete` / `cache:activities` / `cache:stats` | Board data |
+| `cache:lastSyncedAt` | Timestamp of the most recent successful sync |
+| `lock:sync` | 60-second lock preventing concurrent syncs |
+
+### Resetting an instance
+
+Want to hand an instance off to a different Strava account or start over? From the CLI:
+
+```sh
+npx wrangler kv key delete --binding=STRAVA_KV "owner:athlete_id"
+# Optionally also clear the app config and tokens:
+npx wrangler kv key delete --binding=STRAVA_KV "config:strava_app"
+```
+
+The next visit to the Worker URL will drop you back into the setup wizard.
 
 ## Out of scope (for now)
 

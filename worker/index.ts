@@ -7,6 +7,7 @@ import {
   getLastSyncedAt,
 } from "./kv";
 import { runSync } from "./sync";
+import { getSetupStatus, handleSetupSave } from "./setup";
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -21,9 +22,17 @@ export default {
     const { pathname } = url;
     const method = req.method;
 
+    // --- Setup (first-run onboarding) ---
+    if (pathname === "/api/setup" && method === "GET") {
+      return json(await getSetupStatus(req, env));
+    }
+    if (pathname === "/api/setup" && method === "POST") {
+      return handleSetupSave(req, env);
+    }
+
     // --- Auth routes ---
     if (pathname === "/auth/strava/login" && method === "GET") {
-      return loginRedirect(env);
+      return loginRedirect(req, env);
     }
     if (pathname === "/auth/strava/callback" && method === "GET") {
       return handleCallback(req, env, ctx);

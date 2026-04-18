@@ -3,14 +3,23 @@ import { exchangeCode } from "./strava";
 import { getOwner, setOwner, setTokens } from "./kv";
 import { sign, sessionCookie, clearSessionCookie, parseCookie, verify } from "./session";
 import { runSync } from "./sync";
+import { getAppUrl, getSessionSecret, getStravaAppConfig } from "./config";
 
 const AUTHORIZE_URL = "https://www.strava.com/oauth/authorize";
 const SCOPES = "read,activity:read_all";
 
-export function loginRedirect(env: Env): Response {
+export async function loginRedirect(req: Request, env: Env): Promise<Response> {
+  const cfg = await getStravaAppConfig(env);
+  if (!cfg) {
+    return new Response(
+      "Strava app is not configured yet. Open the home page and complete the setup wizard first.",
+      { status: 409 },
+    );
+  }
+  const appUrl = getAppUrl(env, req);
   const params = new URLSearchParams({
-    client_id: env.STRAVA_CLIENT_ID,
-    redirect_uri: `${env.APP_URL}/auth/strava/callback`,
+    client_id: cfg.client_id,
+    redirect_uri: `${appUrl}/auth/strava/callback`,
     response_type: "code",
     approval_prompt: "auto",
     scope: SCOPES,
@@ -48,7 +57,11 @@ export async function handleCallback(
     expires_at: tokenResp.expires_at,
   });
 
-  const sid = await sign({ athlete_id: athleteId, iat: Math.floor(Date.now() / 1000) }, env.SESSION_SECRET);
+  const secret = await getSessionSecret(env);
+  const sid = await sign(
+    { athlete_id: athleteId, iat: Math.floor(Date.now() / 1000) },
+    secret,
+  );
 
   // Fire-and-forget initial sync so the board is populated immediately.
   ctx.waitUntil(runSync(env).catch(() => {}));
@@ -67,7 +80,8 @@ export function handleLogout(): Response {
 export async function requireOwner(req: Request, env: Env): Promise<number | null> {
   const sid = parseCookie(req.headers.get("Cookie"), "sid");
   if (!sid) return null;
-  const payload = await verify(sid, env.SESSION_SECRET);
+  const secret = await getSessionSecret(env);
+  const payload = await verify(sid, secret);
   if (!payload) return null;
   const owner = await getOwner(env);
   if (!owner || owner !== payload.athlete_id) return null;

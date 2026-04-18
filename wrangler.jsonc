@@ -12,21 +12,23 @@
   "observability": {
     "enabled": true
   },
-  // Replace id with the KV namespace you create via:
-  //   wrangler kv namespace create STRAVA_KV
+  // KV is the only stateful binding the Worker needs. When you deploy via the
+  // "Deploy to Cloudflare" button, Cloudflare auto-provisions this namespace.
+  // For CLI deploys, run: wrangler kv namespace create STRAVA_KV
   "kv_namespaces": [
     {
       "binding": "STRAVA_KV",
       "id": "<your-kv-namespace-id>"
     }
   ],
-  "vars": {
-    // Set this to your deployed Worker URL (no trailing slash). Used as the Strava OAuth redirect base.
-    "APP_URL": "https://strava-board.<your-subdomain>.workers.dev"
-  },
   "triggers": {
     // Every 30 minutes. Strava app limit = 2000 calls/day; each sync uses ~3 calls.
     // Tune to taste: "*/15 * * * *" for every 15 min, "0 * * * *" for hourly.
     "crons": ["*/30 * * * *"]
   }
+  // Strava credentials (STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET), the session
+  // HMAC secret (SESSION_SECRET), and the public app URL (APP_URL) are *not*
+  // declared here on purpose. After deploy, the Worker's landing page runs an
+  // in-app setup wizard that writes the credentials to KV, and the Worker
+  // auto-generates a session secret on first use. See README → "Setup".
 }
