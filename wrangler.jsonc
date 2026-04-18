@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "strava-board",
+  "main": "worker/index.ts",
+  "compatibility_date": "2024-11-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Replace id with the KV namespace you create via:
+  //   wrangler kv namespace create STRAVA_KV
+  "kv_namespaces": [
+    {
+      "binding": "STRAVA_KV",
+      "id": "<your-kv-namespace-id>"
+    }
+  ],
+  "vars": {
+    // Set this to your deployed Worker URL (no trailing slash). Used as the Strava OAuth redirect base.
+    "APP_URL": "https://strava-board.<your-subdomain>.workers.dev"
+  },
+  "triggers": {
+    // Every 30 minutes. Strava app limit = 2000 calls/day; each sync uses ~3 calls.
+    // Tune to taste: "*/15 * * * *" for every 15 min, "0 * * * *" for hourly.
+    "crons": ["*/30 * * * *"]
+  }
+}
