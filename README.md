@@ -122,6 +122,8 @@ Browser ───────────────┴── /api/* ──► 
 
 Strava is only called from the OAuth callback and the cron handler. Browser page loads read entirely from KV.
 
+For a **full end-to-end walkthrough** (deploy → admin gate → wizard → OAuth → sync → public board), where each secret lives, and why you never paste refresh or bearer tokens in the UI, see [docs/e2e-flow-and-security.md](docs/e2e-flow-and-security.md).
+
 ### Where is everything stored?
 
 All state lives in a single KV namespace (`STRAVA_KV`):
