@@ -145,6 +145,21 @@ npx wrangler kv key delete --binding=STRAVA_KV "config:strava_app"
 
 The next visit to the Worker URL will drop you back into the setup wizard.
 
+## Troubleshooting
+
+### "Deploy to Cloudflare" button can't see my forked repo (or deploys fail with a Git access error)
+
+If the Cloudflare deploy flow forks the repo but then can't read it — or the repo list in the Cloudflare dashboard doesn't show your fork at all — the **Cloudflare Workers and Pages** GitHub App probably doesn't have access to that repository. This was the symptom I hit on the first attempt.
+
+Fix: reinstall / re-authorize the GitHub App following Cloudflare's guide — [Reinstall the Cloudflare GitHub app](https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/#reinstall-the-cloudflare-github-app). TL;DR:
+
+1. Go to <https://github.com/settings/installations> (or your org's equivalent).
+2. Find **Cloudflare Workers and Pages** → **Configure**.
+3. Either grant access to **All repositories**, or under **Only select repositories** add your `strava-board` fork.
+4. If still broken, **Uninstall** and re-install via the Cloudflare dashboard (*Workers & Pages → Create → Connect to Git → + Add account*).
+
+Retry the deploy afterwards and it should pick up the repo.
+
 ## Out of scope (for now)
 
 Multi-user support, per-activity detail views (segments, splits, streams), Strava webhooks, dark mode.
