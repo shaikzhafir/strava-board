@@ -178,6 +178,6 @@ For a shorter deploy-oriented overview, see the root [README.md](../README.md).
 
 ---
 
-## Production note: admin registration and PBKDF2
+## Admin password (lightweight gate)
 
-Cloudflare Workers enforce a **maximum of 100,000 PBKDF2 iterations** for `crypto.subtle.deriveBits` in production. Higher values throw and surface as HTTP 500 with body `error code: 1101` ([Worker threw a JavaScript exception](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1101/)). Local `vitest` / miniflare may not apply the same cap, so **admin register can work locally but fail after deploy** until iteration counts stay at or below that limit. This project uses **100,000** iterations for admin password hashing ([`worker/admin.ts`](../worker/admin.ts)).
+The setup admin password is only meant to block casual drive-by visitors before Strava claim. It uses **salted PBKDF2-SHA256** with a **low iteration count** (10,000) so registration stays fast and stays well under Cloudflare’s PBKDF2 iteration cap (values above **100,000** can throw in production — [error 1101](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1101/) if the script throws). Minimum password length is **8** characters ([`worker/admin.ts`](../worker/admin.ts)).

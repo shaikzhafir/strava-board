@@ -58,7 +58,7 @@ describe("admin auth", () => {
     expect(stored.username).toBe("octocat");
     expect(stored.salt.length).toBeGreaterThan(10);
     expect(stored.hash.length).toBeGreaterThan(10);
-    expect(stored.iterations).toBeGreaterThanOrEqual(100_000);
+    expect(stored.iterations).toBe(10_000);
     // Plaintext must not appear anywhere in the stored record.
     expect(JSON.stringify(stored)).not.toContain(password);
   });
@@ -76,9 +76,14 @@ describe("admin auth", () => {
     }
   });
 
-  it("register rejects short passwords", async () => {
+  it("register rejects passwords shorter than 8 characters", async () => {
     const r = await register({ username: "octocat", password: "short" });
     expect(r.status).toBe(400);
+  });
+
+  it("register accepts an 8-character password", async () => {
+    const r = await register({ username: "shortpwok", password: "12345678" });
+    expect(r.status).toBe(200);
   });
 
   it("register refuses once an admin already exists", async () => {

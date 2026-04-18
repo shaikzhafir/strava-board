@@ -25,7 +25,7 @@ You will **not** be asked for any secrets or API keys during this flow.
 
 Once the first deploy finishes, open your Worker URL (e.g. `https://strava-board.your-subdomain.workers.dev`). You'll land on a short gated flow:
 
-1. **Claim the instance.** Before anything else you're asked to register an admin account — your **GitHub username** plus a password of your choice. This closes the "someone else hits the URL before you do" window, so complete it immediately after your deploy finishes. The password is hashed with PBKDF2-SHA256 (100k iterations — the maximum allowed on Cloudflare Workers) before being saved to KV; it's never stored in plaintext.
+1. **Claim the instance.** Before anything else you're asked to register an admin account — your **GitHub username** plus a password of your choice. This closes the "someone else hits the URL before you do" window, so complete it immediately after your deploy finishes. The password is salted and PBKDF2-hashed before being saved to KV (lightweight settings: not a high-assurance vault); it's never stored in plaintext. Minimum length is 8 characters.
 2. Shows you the exact **Authorization Callback Domain** to paste into Strava (with a one-click copy button).
 3. Links you to <https://www.strava.com/settings/api> to create your Strava app.
 4. Collects your Strava **Client ID** + **Client Secret** and stores them in this Worker's KV namespace.

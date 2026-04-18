@@ -12,16 +12,8 @@ import {
   type AdminSessionPayload,
 } from "./session";
 
-/**
- * Password hashing: PBKDF2-SHA256.
- *
- * Cloudflare Workers cap PBKDF2 iteration counts at **100,000** in production
- * (`deriveBits` throws above that — see workerd / community threads). Values
- * above the cap work in some local miniflare setups but fail on deploy with
- * error 1101. We therefore use 100k here; the iteration count is still stored
- * on the record so we can re-hash if the platform limit ever increases.
- */
-const PBKDF2_ITERATIONS = 100_000;
+/** Lightweight admin gate: salted PBKDF2-SHA256 (low iteration count). */
+const PBKDF2_ITERATIONS = 10_000;
 const DERIVED_KEY_BITS = 256;
 const SALT_BYTES = 16;
 
@@ -35,7 +27,7 @@ const SALT_BYTES = 16;
  * We store the value lowercased to match GitHub's case-insensitive semantics.
  */
 const GITHUB_USERNAME_RE = /^(?=.{1,39}$)[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}$/;
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 
 const enc = new TextEncoder();
 

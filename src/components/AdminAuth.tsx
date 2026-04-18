@@ -6,7 +6,7 @@ interface Props {
   onAuthenticated: () => void;
 }
 
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function AdminAuth({ status, onAuthenticated }: Props) {
   const mode: "register" | "login" = status.admin_registered ? "login" : "register";
