@@ -13,11 +13,15 @@ import {
 } from "./session";
 
 /**
- * Password hashing: PBKDF2-SHA256. 210k iterations is the current OWASP
- * recommendation (2023) for SHA-256 and stays well under the Cloudflare
- * Workers CPU budget for a single request.
+ * Password hashing: PBKDF2-SHA256.
+ *
+ * Cloudflare Workers cap PBKDF2 iteration counts at **100,000** in production
+ * (`deriveBits` throws above that — see workerd / community threads). Values
+ * above the cap work in some local miniflare setups but fail on deploy with
+ * error 1101. We therefore use 100k here; the iteration count is still stored
+ * on the record so we can re-hash if the platform limit ever increases.
  */
-const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_ITERATIONS = 100_000;
 const DERIVED_KEY_BITS = 256;
 const SALT_BYTES = 16;
 
