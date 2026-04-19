@@ -67,6 +67,17 @@ export interface StravaActivity {
   map: { summary_polyline: string | null };
 }
 
+export interface DailyActivity {
+  count: number;
+  distance_m: number;
+}
+
+export interface DailyActivityMap {
+  byDate: Record<string, DailyActivity>;
+  years: number[];
+  syncedAt: string;
+}
+
 export interface StravaStats {
   recent_run_totals: Totals;
   recent_ride_totals: Totals;

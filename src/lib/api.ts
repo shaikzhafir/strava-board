@@ -8,24 +8,6 @@ export interface Athlete {
   country: string | null;
 }
 
-export interface Activity {
-  id: number;
-  name: string;
-  type: string;
-  sport_type: string;
-  start_date: string;
-  start_date_local: string;
-  distance: number;
-  moving_time: number;
-  elapsed_time: number;
-  total_elevation_gain: number;
-  average_speed: number;
-  max_speed: number;
-  average_heartrate?: number;
-  max_heartrate?: number;
-  map: { summary_polyline: string | null };
-}
-
 interface Totals {
   count: number;
   distance: number;
@@ -46,6 +28,17 @@ export interface Stats {
 export interface Me {
   athlete: Athlete | null;
   lastSyncedAt: string | null;
+}
+
+export interface DailyActivity {
+  count: number;
+  distance_m: number;
+}
+
+export interface DailyActivityMap {
+  byDate: Record<string, DailyActivity>;
+  years: number[];
+  syncedAt: string;
 }
 
 export interface SetupStatus {
@@ -95,9 +88,8 @@ async function postAuth(
 
 export const api = {
   me: () => getJson<Me>("/api/me"),
-  activities: (limit?: number) =>
-    getJson<Activity[]>(`/api/activities${limit ? `?limit=${limit}` : ""}`),
   stats: () => getJson<Stats | null>("/api/stats"),
+  dailyActivity: () => getJson<DailyActivityMap | null>("/api/daily-activity"),
   sync: async () => {
     const res = await fetch("/api/sync", { method: "POST" });
     return { ok: res.ok, status: res.status };

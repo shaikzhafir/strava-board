@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { env, SELF, fetchMock } from "cloudflare:test";
-import { setOwner, setTokens, KEY } from "../worker/kv";
+import { setOwner, setTokens } from "../worker/kv";
 import { sign } from "../worker/session";
 
 const OWNER = 5555;
@@ -69,21 +69,6 @@ describe("worker HTTP router", () => {
     const body = (await res.json()) as { athlete: unknown; lastSyncedAt: unknown };
     expect(body.athlete).toBeNull();
     expect(body.lastSyncedAt).toBeNull();
-  });
-
-  it("GET /api/activities returns [] when no cache", async () => {
-    const res = await SELF.fetch("http://localhost/api/activities");
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
-  });
-
-  it("GET /api/activities respects limit param", async () => {
-    await env.STRAVA_KV.put(
-      KEY.CACHE_ACTIVITIES,
-      JSON.stringify([{ id: 1 }, { id: 2 }, { id: 3 }]),
-    );
-    const res = await SELF.fetch("http://localhost/api/activities?limit=2");
-    expect(await res.json()).toHaveLength(2);
   });
 
   it("GET /api/stats returns null when no cache", async () => {

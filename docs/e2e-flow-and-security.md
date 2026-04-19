@@ -114,7 +114,7 @@ That header is built **inside the Worker**. The React app’s `/api/me`, `/api/a
 
 1. **Immediate:** `runSync` reads tokens from KV, calls Strava with `Authorization: Bearer`, writes trimmed activity JSON and stats into `cache:*` keys ([`worker/sync.ts`](../worker/sync.ts)).
 2. **Scheduled:** Cron invokes the same `runSync` path on the Worker (no browser).
-3. **Manual:** Owner can `POST /api/sync` with a valid `sid` cookie (see [`worker/index.ts`](../worker/index.ts)).
+3. **Manual:** Owner can `POST /api/sync` with a valid `sid` cookie (see [`worker/index.ts`](../worker/index.ts)). The production SPA hides the in-app control; it appears only in Vite dev (`npm run dev`) to avoid burning quota in production.
 
 ### Phase 5: Day-to-day usage — public board
 

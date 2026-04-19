@@ -1,5 +1,10 @@
 import type { Env, AdminRecord } from "./types";
-import { KEY } from "./kv";
+import {
+  KEY,
+  clearAdminLoginAttempts,
+  getAdminLoginAttempts,
+  incrAdminLoginAttempts,
+} from "./kv";
 import { getSessionSecret } from "./config";
 import {
   sign,
@@ -16,6 +21,13 @@ import {
 const PBKDF2_ITERATIONS = 10_000;
 const DERIVED_KEY_BITS = 256;
 const SALT_BYTES = 16;
+
+const LOGIN_RATE_WINDOW_SECONDS = 900;
+const LOGIN_RATE_MAX_ATTEMPTS = 10;
+
+function getClientIp(req: Request): string {
+  return req.headers.get("CF-Connecting-IP") ?? "local";
+}
 
 /**
  * GitHub username rules (as enforced by github.com):
@@ -197,6 +209,21 @@ export async function handleAdminLogin(req: Request, env: Env): Promise<Response
     return jsonError("No admin is registered yet — use the register form on first access.", 404);
   }
 
+  const ip = getClientIp(req);
+  const attempts = await getAdminLoginAttempts(env, ip);
+  if (attempts >= LOGIN_RATE_MAX_ATTEMPTS) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Too many login attempts. Try again later." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(LOGIN_RATE_WINDOW_SECONDS),
+        },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -215,9 +242,11 @@ export async function handleAdminLogin(req: Request, env: Env): Promise<Response
   const userOk = !!username && username === admin.username;
   const hashOk = constantTimeEqual(candidate, admin.hash);
   if (!userOk || !hashOk) {
+    await incrAdminLoginAttempts(env, ip, LOGIN_RATE_WINDOW_SECONDS);
     return jsonError("Invalid username or password.", 401);
   }
 
+  await clearAdminLoginAttempts(env, ip);
   const cookie = await issueAdminCookie(env, req, admin.username);
   const headers = new Headers({ "Content-Type": "application/json" });
   headers.append("Set-Cookie", cookie);

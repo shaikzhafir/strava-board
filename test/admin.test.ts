@@ -22,14 +22,27 @@ async function register(
 
 async function login(
   body: Record<string, unknown>,
-): Promise<{ status: number; cookie: string | null; body: Record<string, unknown> }> {
+  ip?: string,
+): Promise<{
+  status: number;
+  cookie: string | null;
+  body: Record<string, unknown>;
+  retryAfter: string | null;
+}> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (ip) headers["CF-Connecting-IP"] = ip;
   const res = await SELF.fetch("http://localhost/api/admin/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
   const parsed = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  return { status: res.status, cookie: res.headers.get("Set-Cookie"), body: parsed };
+  return {
+    status: res.status,
+    cookie: res.headers.get("Set-Cookie"),
+    body: parsed,
+    retryAfter: res.headers.get("Retry-After"),
+  };
 }
 
 describe("admin auth", () => {
@@ -126,5 +139,59 @@ describe("admin auth", () => {
     const res = await SELF.fetch("http://localhost/api/admin/logout", { method: "POST" });
     expect(res.status).toBe(200);
     expect(res.headers.get("Set-Cookie")).toMatch(/admin_sid=;.*Max-Age=0/);
+  });
+
+  it("login rate-limits after 10 failed attempts from the same IP", async () => {
+    await register({ username: "octocat", password: "correct horse battery staple" });
+    for (let i = 0; i < 10; i++) {
+      const r = await login({ username: "octocat", password: "wrong password attempt" }, "10.0.0.1");
+      expect(r.status).toBe(401);
+    }
+    const blocked = await login(
+      { username: "octocat", password: "wrong password attempt" },
+      "10.0.0.1",
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.retryAfter).toBe("900");
+    // Even correct credentials are blocked while the limit is in effect.
+    const stillBlocked = await login(
+      { username: "octocat", password: "correct horse battery staple" },
+      "10.0.0.1",
+    );
+    expect(stillBlocked.status).toBe(429);
+  });
+
+  it("a successful login clears the rate-limit counter", async () => {
+    await register({ username: "octocat", password: "correct horse battery staple" });
+    for (let i = 0; i < 5; i++) {
+      const r = await login({ username: "octocat", password: "wrong password attempt" }, "10.0.0.2");
+      expect(r.status).toBe(401);
+    }
+    const ok = await login(
+      { username: "octocat", password: "correct horse battery staple" },
+      "10.0.0.2",
+    );
+    expect(ok.status).toBe(200);
+    for (let i = 0; i < 10; i++) {
+      const r = await login({ username: "octocat", password: "wrong password attempt" }, "10.0.0.2");
+      expect(r.status).toBe(401);
+    }
+  });
+
+  it("rate limits are bucketed per IP", async () => {
+    await register({ username: "octocat", password: "correct horse battery staple" });
+    for (let i = 0; i < 10; i++) {
+      await login({ username: "octocat", password: "wrong password attempt" }, "10.0.0.3");
+    }
+    const blockedA = await login(
+      { username: "octocat", password: "wrong password attempt" },
+      "10.0.0.3",
+    );
+    expect(blockedA.status).toBe(429);
+    const freshB = await login(
+      { username: "octocat", password: "wrong password attempt" },
+      "10.0.0.4",
+    );
+    expect(freshB.status).toBe(401);
   });
 });

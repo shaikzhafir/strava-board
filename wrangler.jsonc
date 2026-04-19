@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "strava-board",
+  // Worker name — set this before deploy (e.g. <github-username>-board).
+  "name": "your-github-username-board",
   "main": "worker/index.ts",
   "compatibility_date": "2024-11-06",
   "compatibility_flags": ["nodejs_compat"],

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { runSync } from "../worker/sync";
+import { runSync, aggregateDaily } from "../worker/sync";
 import { setOwner, setTokens, KEY } from "../worker/kv";
+import type { StravaActivity } from "../worker/types";
 
 const OWNER = 7777;
 
@@ -96,8 +97,6 @@ describe("runSync", () => {
     if (r.ok) expect(r.activities).toBe(1);
 
     expect(await env.STRAVA_KV.get(KEY.CACHE_ATHLETE, "json")).toMatchObject({ id: OWNER });
-    const cached = await env.STRAVA_KV.get<unknown[]>(KEY.CACHE_ACTIVITIES, "json");
-    expect(cached).toHaveLength(1);
     expect(await env.STRAVA_KV.get(KEY.LAST_SYNCED_AT)).not.toBeNull();
   });
 
@@ -123,5 +122,65 @@ describe("runSync", () => {
     stubStravaApi();
     await runSync(env);
     expect(await env.STRAVA_KV.get(KEY.LOCK_SYNC)).toBeNull();
+  });
+
+  it("writes a daily-activity aggregate to KV on success", async () => {
+    await setOwner(env, OWNER);
+    await setTokens(env, OWNER, {
+      access_token: "fresh",
+      refresh_token: "r",
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+    });
+    stubStravaApi();
+    await runSync(env);
+    const daily = await env.STRAVA_KV.get<{
+      byDate: Record<string, { count: number; distance_m: number }>;
+      years: number[];
+    }>(KEY.CACHE_DAILY, "json");
+    expect(daily).not.toBeNull();
+    expect(daily!.byDate["2024-01-01"]).toEqual({ count: 1, distance_m: 5000 });
+    expect(daily!.years).toEqual([2024]);
+  });
+});
+
+describe("aggregateDaily", () => {
+  function act(start_date_local: string, distance: number): StravaActivity {
+    return {
+      id: Math.random(),
+      name: "",
+      type: "Run",
+      sport_type: "Run",
+      start_date: start_date_local + "Z",
+      start_date_local,
+      distance,
+      moving_time: 0,
+      elapsed_time: 0,
+      total_elevation_gain: 0,
+      average_speed: 0,
+      max_speed: 0,
+      map: { summary_polyline: null },
+    };
+  }
+
+  it("buckets activities by local date and sums distance", () => {
+    const result = aggregateDaily([
+      act("2025-03-14T07:00:00", 5000),
+      act("2025-03-14T19:30:00", 3000),
+      act("2025-03-15T08:00:00", 10000),
+      act("2024-12-31T23:00:00", 1500),
+    ]);
+    expect(result.byDate["2025-03-14"]).toEqual({ count: 2, distance_m: 8000 });
+    expect(result.byDate["2025-03-15"]).toEqual({ count: 1, distance_m: 10000 });
+    expect(result.byDate["2024-12-31"]).toEqual({ count: 1, distance_m: 1500 });
+    expect(result.years).toEqual([2024, 2025]);
+  });
+
+  it("skips activities with no local date", () => {
+    const result = aggregateDaily([
+      { ...act("2025-01-01T00:00:00", 1000), start_date_local: "" } as StravaActivity,
+      act("2025-01-02T00:00:00", 2000),
+    ]);
+    expect(result.byDate["2025-01-02"]).toEqual({ count: 1, distance_m: 2000 });
+    expect(Object.keys(result.byDate)).toEqual(["2025-01-02"]);
   });
 });

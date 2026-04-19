@@ -130,89 +130,173 @@ h3 {
   margin-top: 0.25rem;
 }
 
-.charts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.chart {
+/* --- Activity heatmap (GitHub-style) --- */
+.heatmap {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1.25rem 1.5rem 1.25rem;
+  margin-top: 1rem;
+  position: relative;
+}
+.heatmap-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.heatmap-title {
+  font-size: 1rem;
+  color: var(--fg);
+  font-weight: 600;
+  margin: 0;
+}
+.heatmap-sub {
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+  margin: 0.15rem 0 0;
+}
+.heatmap-years {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+.heatmap-year {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.heatmap-year:hover {
+  background: #f6f8fa;
+}
+.heatmap-year.active {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+.heatmap-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.25rem;
+}
+.heatmap-inner {
+  display: inline-block;
+  min-width: max-content;
+}
+.heatmap-months {
+  display: grid;
+  grid-auto-flow: column;
+  margin-left: 30px;
+  height: 16px;
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  gap: 3px;
+}
+.heatmap-month {
+  white-space: nowrap;
+}
+.heatmap-body {
+  display: flex;
+  gap: 4px;
+}
+.heatmap-days {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  row-gap: 3px;
+  width: 26px;
+  font-size: 0.65rem;
+  color: var(--fg-muted);
+  line-height: 11px;
+}
+.heatmap-days span {
+  grid-column: 1;
+}
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  column-gap: 3px;
+  row-gap: 3px;
+}
+.heatmap-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: #ebedf0;
+  box-shadow: inset 0 0 0 1px rgba(27, 31, 35, 0.06);
+  cursor: default;
+}
+.heatmap-cell:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.heatmap-cell.hidden {
+  visibility: hidden;
+}
+.heatmap-cell.future {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(27, 31, 35, 0.04);
+}
+.heatmap-cell.tier-0 {
+  background: #ebedf0;
+}
+.heatmap-cell.tier-1 {
+  background: #ffd7c2;
+}
+.heatmap-cell.tier-2 {
+  background: #fc8a4c;
+}
+.heatmap-cell.tier-3 {
+  background: #e34d0a;
+}
+.heatmap-cell.tier-4 {
+  background: #8a2f08;
+}
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.9rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  justify-content: flex-end;
+}
+.heatmap-legend .heatmap-cell {
+  cursor: default;
 }
 
-.activity-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+/* Floating tooltip (follows the hovered/focused cell) */
+.heatmap-tip {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
+  background: #24292f;
+  color: #fff;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-.activity-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.activity-card header {
-  padding: 0.75rem 1rem 0.5rem;
-}
-.activity-title {
-  font-weight: 600;
-}
-.activity-meta {
-  color: var(--fg-muted);
-  font-size: 0.8rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.25rem;
-}
-.pill {
-  background: #fef2ec;
-  color: var(--brand);
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.mini-map {
-  height: 140px;
-  width: 100%;
-}
-.map-empty {
-  height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-muted);
-  background: #f3f4f6;
-  font-size: 0.85rem;
-}
-.activity-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  padding: 0.75rem 1rem 1rem;
-  margin: 0;
-}
-.activity-stats div {
-  display: flex;
-  flex-direction: column;
-}
-.activity-stats dt {
-  font-size: 0.7rem;
-  color: var(--fg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.activity-stats dd {
-  font-weight: 600;
-  margin: 0;
-  font-size: 0.95rem;
+.heatmap-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #24292f;
 }
 
 /* --- Setup wizard --- */

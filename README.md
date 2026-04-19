@@ -17,13 +17,13 @@ Clicking the button will:
 2. Connect the fork to your Cloudflare account.
 3. Auto-provision the KV namespace declared in `wrangler.jsonc` (binding: `STRAVA_KV`).
 4. Install the cron trigger (`*/30 * * * *`).
-5. Build (`npm run build`) and deploy the Worker.
+5. Build and deploy the Worker (`npm run deploy` runs `npm run build` then `wrangler deploy` using `wrangler.jsonc`).
 
 You will **not** be asked for any secrets or API keys during this flow.
 
 ### Setup (one-time, takes ~60 seconds)
 
-Once the first deploy finishes, open your Worker URL (e.g. `https://strava-board.your-subdomain.workers.dev`). You'll land on a short gated flow:
+Once the first deploy finishes, open your Worker URL (for example `https://your-worker-name.<subdomain>.workers.dev` — it matches the `name` field in `wrangler.jsonc`). You'll land on a short gated flow:
 
 1. **Claim the instance.** Before anything else you're asked to register an admin account — your **GitHub username** plus a password of your choice. This closes the "someone else hits the URL before you do" window, so complete it immediately after your deploy finishes. The password is salted and PBKDF2-hashed before being saved to KV (lightweight settings: not a high-assurance vault); it's never stored in plaintext. Minimum length is 8 characters.
 2. Shows you the exact **Authorization Callback Domain** to paste into Strava (with a one-click copy button).
@@ -56,7 +56,7 @@ npm install
 npx wrangler kv namespace create STRAVA_KV
 ```
 
-Copy the `id` from the output into `wrangler.jsonc` (replacing `"<your-kv-namespace-id>"`).
+Copy the `id` from the output into `wrangler.jsonc` (replacing `"<your-kv-namespace-id>"`). Edit the top-level `"name"` in `wrangler.jsonc` to the Worker name you want (for example your GitHub username plus `-board`); that value controls the default `*.workers.dev` hostname.
 
 ### 3. Deploy
 
@@ -75,6 +75,12 @@ npm run dev
 ```
 
 Open the dev server URL and walk through the same setup wizard. For the Strava OAuth redirect to work locally, add your dev origin's hostname (typically `localhost`) as a second **Authorization Callback Domain** on your Strava app page. Strava supports multiple callback domains per app, so you can use the same app for local dev and production.
+
+### Manual sync (development only)
+
+The **production** build does **not** show an in-app **refresh** link next to “Last synced …”. In production, data updates come from the **cron** schedule (plus the automatic sync after OAuth). That avoids casual repeated manual syncs, which would spend Strava API quota and Worker invocations faster than necessary.
+
+When you run **`npm run dev`**, the board header includes **refresh** so you can queue `POST /api/sync` without waiting for cron. The Worker still exposes that route for owners; you can also trigger it with a valid owner session cookie (for example with `curl`) if you need to test a deployed worker without the UI control.
 
 ### Optional: skip the wizard in local dev
 
@@ -96,7 +102,7 @@ In `wrangler.jsonc`:
 "triggers": { "crons": ["*/30 * * * *"] }
 ```
 
-Each sync uses ~3 Strava API calls. Strava's per-app quota is 2000 calls/day, so even `*/5 * * * *` (every 5 min) is comfortably within budget. More frequent = fresher data; the owner can also click **refresh** in the UI to force an immediate sync.
+Each sync uses on the order of a few Strava API calls (see `worker/sync.ts`). Strava's per-app quota is 2000 calls/day, so even `*/5 * * * *` (every 5 min) is comfortably within budget. More frequent cron = fresher data. Manual sync from the UI is available only in **local dev** (`npm run dev`); production relies on cron so the board does not encourage extra syncs that burn quota.
 
 ## Testing
 
@@ -120,9 +126,32 @@ Browser ───────────────┴── /api/* ──► 
                        └── /* ──► Static assets (React SPA + setup wizard)
 ```
 
-Strava is only called from the OAuth callback and the cron handler. Browser page loads read entirely from KV.
+Strava is called from the OAuth callback, the cron handler, and owner `POST /api/sync` (the production SPA does not offer a button for that—see [Manual sync (development only)](#manual-sync-development-only)). Normal browser **GET** requests for the board read KV only.
 
 For a **full end-to-end walkthrough** (deploy → admin gate → wizard → OAuth → sync → public board), where each secret lives, and why you never paste refresh or bearer tokens in the UI, see [docs/e2e-flow-and-security.md](docs/e2e-flow-and-security.md).
+
+## Extending the board (Strava API and visualizations)
+
+### Human-readable guide
+
+[docs/strava-skills.md](docs/strava-skills.md) documents OAuth scopes, rate limits, which endpoints the app uses today, ideas for new charts (streams, segments, routes, and more), and how to wire data either into the **scheduled sync** (KV-backed, cheap at read time) or **on demand** (owner-gated, good for heavy payloads like activity streams).
+
+### Agent skill (Strava API)
+
+The repo ships a **Cursor-compatible skill** under **`skills/strava-api/`** (versioned like any other source) so collaborators and AI assistants can extend the app without breaking the “public `/api/*` reads KV only” rule:
+
+| Location | Purpose |
+| --- | --- |
+| [skills/strava-api/SKILL.md](skills/strava-api/SKILL.md) | Concise rules and the two extension paths (sync vs on-demand); points at `docs/strava-skills.md` for the full endpoint catalog |
+
+**How to use it**
+
+1. **Any editor / assistant:** Open or `@`-reference [`skills/strava-api/SKILL.md`](skills/strava-api/SKILL.md) when working on Strava-backed Worker or UI changes.
+2. **Cursor auto-discovery:** Cursor loads project skills from **`.cursor/skills/`**, which is often gitignored for personal tooling. To use this repo’s skill as a Cursor **project skill**, copy or symlink it, for example: `skills/strava-api` → `.cursor/skills/strava-api` (same `SKILL.md` layout). Alternatively, keep using the file under `skills/` only—it stays in git for everyone.
+3. **Global Cursor skills:** Copy `skills/strava-api` to `~/.cursor/skills/strava-api` on your machine if you want the same instructions in other workspaces.
+4. **Forks and PRs:** Update `skills/strava-api/SKILL.md` when you introduce new conventions (e.g. a new KV key pattern) so contributors stay aligned.
+
+Strava HTTP API reference: [developers.strava.com/docs/reference](https://developers.strava.com/docs/reference/).
 
 ### Where is everything stored?
 

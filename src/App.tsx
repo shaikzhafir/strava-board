@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Activity, type Me, type SetupStatus, type Stats } from "./lib/api";
+import {
+  api,
+  type DailyActivityMap,
+  type Me,
+  type SetupStatus,
+  type Stats,
+} from "./lib/api";
 import { timeAgo } from "./lib/format";
-import ActivityList from "./components/ActivityList";
+import ActivityHeatmap from "./components/ActivityHeatmap";
 import SummaryStats from "./components/SummaryStats";
-import DistanceChart from "./components/DistanceChart";
-import PaceChart from "./components/PaceChart";
 import SetupWizard from "./components/SetupWizard";
 import AdminAuth from "./components/AdminAuth";
 
 interface State {
   setup: SetupStatus | null;
   me: Me | null;
-  activities: Activity[];
   stats: Stats | null;
+  daily: DailyActivityMap | null;
   loading: boolean;
   error: string | null;
 }
@@ -20,8 +24,8 @@ interface State {
 const INITIAL: State = {
   setup: null,
   me: null,
-  activities: [],
   stats: null,
+  daily: null,
   loading: true,
   error: null,
 };
@@ -33,25 +37,19 @@ export default function App() {
   const load = useCallback(async () => {
     try {
       const setup = await api.setupStatus();
-      // If Strava creds aren't configured yet, skip the data fetch — the board
-      // is always empty in that state and the admin/setup UI takes over.
       if (!setup.configured || !setup.claimed) {
         setState({
           setup,
           me: null,
-          activities: [],
           stats: null,
+          daily: null,
           loading: false,
           error: null,
         });
         return;
       }
-      const [me, activities, stats] = await Promise.all([
-        api.me(),
-        api.activities(),
-        api.stats(),
-      ]);
-      setState({ setup, me, activities, stats, loading: false, error: null });
+      const [me, stats, daily] = await Promise.all([api.me(), api.stats(), api.dailyActivity()]);
+      setState({ setup, me, stats, daily, loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -80,9 +78,6 @@ export default function App() {
 
   if (state.loading) return <div className="page"><p>Loading…</p></div>;
 
-  // Pre-setup gate: while the instance is un-claimed we require an admin
-  // session. The admin is registered on first access and then must log in
-  // to see the Strava setup wizard / Connect button.
   if (state.setup && (!state.setup.configured || !state.setup.claimed)) {
     if (!state.setup.admin_authenticated) {
       return (
@@ -98,7 +93,6 @@ export default function App() {
         </div>
       );
     }
-    // Configured but not yet claimed — show the Strava connect button.
     return (
       <div className="page center">
         <h1>Strava Activity Board</h1>
@@ -143,9 +137,11 @@ export default function App() {
             </h1>
             <p className="muted">
               Last synced {timeAgo(state.me!.lastSyncedAt)}
-              <button className="linklike" onClick={onSync} disabled={syncing}>
-                {syncing ? "syncing…" : "refresh"}
-              </button>
+              {import.meta.env.DEV && (
+                <button className="linklike" onClick={onSync} disabled={syncing}>
+                  {syncing ? "syncing…" : "refresh"}
+                </button>
+              )}
             </p>
           </div>
         </div>
@@ -158,17 +154,11 @@ export default function App() {
         <SummaryStats stats={state.stats} />
       </section>
 
-      {state.activities.length > 0 && (
-        <section className="charts">
-          <DistanceChart activities={state.activities} />
-          <PaceChart activities={state.activities} />
+      {state.daily && state.daily.years.length > 0 && (
+        <section>
+          <ActivityHeatmap map={state.daily} />
         </section>
       )}
-
-      <section>
-        <h2>Recent activities</h2>
-        <ActivityList activities={state.activities} />
-      </section>
     </div>
   );
 }

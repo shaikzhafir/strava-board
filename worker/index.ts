@@ -2,8 +2,8 @@ import type { Env } from "./types";
 import { loginRedirect, handleCallback, handleLogout, requireOwner } from "./auth";
 import {
   getCachedAthlete,
-  getCachedActivities,
   getCachedStats,
+  getCachedDaily,
   getLastSyncedAt,
 } from "./kv";
 import { runSync } from "./sync";
@@ -66,15 +66,12 @@ export default {
       return json({ athlete, lastSyncedAt });
     }
 
-    if (pathname === "/api/activities" && method === "GET") {
-      const activities = (await getCachedActivities(env)) ?? [];
-      const limitParam = url.searchParams.get("limit");
-      const limit = limitParam ? Math.max(1, Math.min(100, Number(limitParam) || 0)) : undefined;
-      return json(limit ? activities.slice(0, limit) : activities);
-    }
-
     if (pathname === "/api/stats" && method === "GET") {
       return json((await getCachedStats(env)) ?? null);
+    }
+
+    if (pathname === "/api/daily-activity" && method === "GET") {
+      return json((await getCachedDaily(env)) ?? null);
     }
 
     if (pathname === "/api/sync" && method === "POST") {

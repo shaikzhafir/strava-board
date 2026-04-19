@@ -1,0 +1,8 @@
+# Copy this file to `.dev.vars` and fill in values from your Strava dev app.
+# Create the app at https://www.strava.com/settings/api with
+# Authorization Callback Domain set to "localhost".
+#
+# Loaded automatically by @cloudflare/vite-plugin when running `npm run dev:local`.
+
+STRAVA_CLIENT_ID=
+STRAVA_CLIENT_SECRET=
