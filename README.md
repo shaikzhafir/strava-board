@@ -79,29 +79,59 @@ The wizard handles everything else (Strava app creation instructions, callback d
 
 ## Local development
 
+### 1. Install and run the dev server
+
+From the repo root:
+
 ```sh
+npm install
 npm run dev
 ```
 
-Open the dev server URL and walk through the same setup wizard. For the Strava OAuth redirect to work locally, add your dev origin's hostname (typically `localhost`) as a second **Authorization Callback Domain** on your Strava app page. Strava supports multiple callback domains per app, so you can use the same app for local dev and production.
+Open the URL Vite prints (usually `http://localhost:5173`). The Worker runs through the Cloudflare Vite plugin (same code path as production, with local KV under `.wrangler/`).
+
+### 2. Strava app callback URL
+
+For OAuth redirects to work, add your dev origin’s hostname (typically **`localhost`**) as an **Authorization Callback Domain** on [your Strava API application](https://www.strava.com/settings/api). You can use one Strava app for both local dev and production.
+
+### 3. Configure credentials (pick one)
+
+**A — Setup wizard (matches production flow)**  
+Use the in-app wizard to paste Client ID and Secret, then **Connect with Strava**. Credentials are stored in local KV.
+
+**B — `.dev.vars` only (skip re-entering the wizard)**  
+Create a gitignored `.dev.vars` at the repo root (copy from [`local-dev.env.example`](local-dev.env.example)):
+
+```sh
+cp local-dev.env.example .dev.vars
+# Edit .dev.vars — set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET
+```
+
+We do **not** use the filename `.dev.vars.example` in the repo because Cloudflare’s “Deploy to Workers” button prompts for every variable listed there at deploy time.
+
+If you already used the wizard once, Miniflare still has Strava data in KV. To **drive Client ID/Secret from `.dev.vars`** (and to **reset owner/tokens/caches** when you change them), add:
+
+```sh
+STRAVA_PREFER_DEV_VARS=true
+```
+
+- Restart **`npm run dev`** after any change to Client ID or Secret. The Worker compares a fingerprint of those values; if it changed, it clears owner, OAuth tokens, caches, and wizard-stored app config so you can **Connect with Strava** again with the new app.  
+- Do **not** set `STRAVA_PREFER_DEV_VARS` on production Workers.
+
+If `STRAVA_PREFER_DEV_VARS` is unset, env vars are only a **fallback** when KV has no Strava app config.
+
+**C — `npm run dev:local`**  
+Alternative entry that checks `.dev.vars` exists and starts Vite with an explicit project root:
+
+```sh
+npm run dev:local
+```
 
 ### Manual sync (development only)
 
-The **production** build does **not** show an in-app **refresh** link next to “Last synced …”. In production, data updates come from the **cron** schedule (plus the automatic sync after OAuth). That avoids casual repeated manual syncs, which would spend Strava API quota and Worker invocations faster than necessary.
+The **production** build does **not** show an in-app **refresh** link next to “Last synced …”. In production, data updates come from the **cron** schedule (plus the automatic sync after OAuth).
 
-When you run **`npm run dev`**, the board header includes **refresh** so you can queue `POST /api/sync` without waiting for cron. The Worker still exposes that route for owners; you can also trigger it with a valid owner session cookie (for example with `curl`) if you need to test a deployed worker without the UI control.
-
-### Optional: skip the wizard in local dev
-
-If you'd rather not run through the wizard on every `npm run dev`, create a gitignored `.dev.vars` at the repo root. You can start from `local-dev.env.example` (`cp local-dev.env.example .dev.vars` and fill in values). We intentionally do **not** ship `.dev.vars.example`: Cloudflare’s “Deploy to Workers” flow prompts for every key listed in that filename, which would incorrectly ask for Strava credentials during deploy instead of in the post-deploy wizard.
-
-```sh
-STRAVA_CLIENT_ID=...
-STRAVA_CLIENT_SECRET=...
-# SESSION_SECRET is auto-generated on first request; you can override it here too.
-```
-
-These env vars are read only as a **fallback** when KV config is absent, so they never interfere with production KV-stored credentials.
+When you run **`npm run dev`** (or `dev:local`), the board header includes **refresh** so you can queue `POST /api/sync` without waiting for cron.
 
 ## Tuning the sync frequency
 

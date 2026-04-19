@@ -12,5 +12,6 @@ interface Env {
   APP_URL?: string;
   STRAVA_CLIENT_ID?: string;
   STRAVA_CLIENT_SECRET?: string;
+  STRAVA_PREFER_DEV_VARS?: string;
   SESSION_SECRET?: string;
 }

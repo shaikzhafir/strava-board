@@ -3,21 +3,39 @@ import type { Env, StravaAppConfig } from "./types";
 const KEY_STRAVA_APP = "config:strava_app";
 const KEY_SESSION_SECRET = "config:session_secret";
 
+/** When true, `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` from env win over KV (local dev). */
+export function prefersStravaFromEnv(env: Env): boolean {
+  const v = env.STRAVA_PREFER_DEV_VARS;
+  return v === "true" || v === "1";
+}
+
 /**
  * Resolve the effective Strava app credentials.
  *
- * Order of precedence:
+ * Default order (production and typical local):
  *   1. KV (set via the in-app setup wizard)
  *   2. Environment variables (wrangler secrets / `.dev.vars`)
  *   3. null — caller must prompt the operator to configure.
+ *
+ * When `STRAVA_PREFER_DEV_VARS` is `"true"` or `"1"` (set in `.dev.vars` for local
+ * iteration only), order 1–2 swap so env wins. Changing Client ID/Secret triggers
+ * [`reconcileDevStravaAppSwitch`](./dev-strava-reset.ts) to reset Strava-derived KV
+ * so OAuth and sync use the new app (restart dev after editing `.dev.vars`).
  */
 export async function getStravaAppConfig(env: Env): Promise<StravaAppConfig | null> {
+  const fromEnv =
+    env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET
+      ? { client_id: env.STRAVA_CLIENT_ID, client_secret: env.STRAVA_CLIENT_SECRET }
+      : null;
+
+  if (prefersStravaFromEnv(env) && fromEnv) {
+    return fromEnv;
+  }
+
   const stored = await env.STRAVA_KV.get<StravaAppConfig>(KEY_STRAVA_APP, "json");
   if (stored && stored.client_id && stored.client_secret) return stored;
 
-  if (env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET) {
-    return { client_id: env.STRAVA_CLIENT_ID, client_secret: env.STRAVA_CLIENT_SECRET };
-  }
+  if (fromEnv) return fromEnv;
   return null;
 }
 

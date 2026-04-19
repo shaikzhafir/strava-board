@@ -43,6 +43,8 @@ For local development, [`worker/config.ts`](../worker/config.ts) resolves Strava
 1. KV `config:strava_app` (wizard or API write).
 2. If missing: `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` from the Worker environment (e.g. `.dev.vars` or Wrangler secrets).
 
+If you already used the wizard (KV has credentials) but want to **iterate on Client ID/Secret from `.dev.vars`**, set **`STRAVA_PREFER_DEV_VARS=true`** (or `1`) in `.dev.vars` so env wins over KV. When the Client ID or Secret **value changes**, the Worker clears owner, tokens, caches, and wizard-stored app config (see [`worker/dev-strava-reset.ts`](../worker/dev-strava-reset.ts)), then you **Connect with Strava** again. Restart the dev server after edits. Do not set this in production.
+
 So in dev you can skip re-entering the wizard every time by putting the app pair in `.dev.vars`. Production is intended to use KV from the wizard.
 
 ---

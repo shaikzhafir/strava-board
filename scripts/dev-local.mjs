@@ -61,6 +61,9 @@ process.stdout.write(
 );
 
 const { createServer } = await import("vite");
-const server = await createServer({ configFile: resolve(ROOT, "vite.config.ts") });
+const server = await createServer({
+  root: ROOT,
+  configFile: resolve(ROOT, "vite.config.ts"),
+});
 await server.listen();
 server.printUrls();

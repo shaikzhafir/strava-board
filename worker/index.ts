@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { reconcileDevStravaAppSwitch } from "./dev-strava-reset";
 import { loginRedirect, handleCallback, handleLogout, requireOwner } from "./auth";
 import {
   getCachedAthlete,
@@ -23,6 +24,7 @@ function json(body: unknown, init: ResponseInit = {}): Response {
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    await reconcileDevStravaAppSwitch(env);
     const url = new URL(req.url);
     const { pathname } = url;
     const method = req.method;
@@ -86,6 +88,11 @@ export default {
   },
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runSync(env).then(() => undefined));
+    ctx.waitUntil(
+      (async () => {
+        await reconcileDevStravaAppSwitch(env);
+        await runSync(env);
+      })(),
+    );
   },
 } satisfies ExportedHandler<Env>;

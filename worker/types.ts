@@ -9,6 +9,8 @@ export interface Env {
   APP_URL?: string;
   STRAVA_CLIENT_ID?: string;
   STRAVA_CLIENT_SECRET?: string;
+  /** Local dev only: when `"true"` or `"1"`, use STRAVA_* from env before KV so `.dev.vars` edits apply after restart. */
+  STRAVA_PREFER_DEV_VARS?: string;
   SESSION_SECRET?: string;
 }
 
