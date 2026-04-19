@@ -16,11 +16,13 @@ To use the **Deploy to Cloudflare** flow (or to fork and deploy manually), you o
 
 You do **not** need a Strava app or API keys before deploy; the Worker starts empty and the in-app wizard walks you through Strava after the first deploy.
 
-### Repository visibility (recommended: private)
+### Repository visibility (recommended: private after deploy)
 
 The **KV namespace ID** in [`wrangler.jsonc`](wrangler.jsonc) is a Cloudflare **resource identifier**, not a secret like an API key. Strava tokens, session secrets, and app config live **inside** KV at runtime; they are not in git. Someone who only sees your namespace ID still cannot read or write KV without your Cloudflare account credentials.
 
-That said, a **public** repo exposes your namespace ID, Worker `name`, and any other edits you commit. For a personal instance, **default to a private GitHub repository**: after the deploy flow forks this project, open **Settings → General → Danger zone → Change repository visibility** and set the fork to **private** (free personal accounts include private repos). Alternatively, import or push to a new private repo if you prefer not to keep a public fork.
+That said, a **public** repo exposes your namespace ID, Worker `name`, and any other edits you commit. **The “Deploy to Cloudflare” button does not create a private fork** — GitHub forks a public upstream repo as **public** by default, and [Cloudflare’s deploy flow](https://developers.cloudflare.com/workers/platform/deploy-buttons/) does not offer a checkbox to change that. If you want a private repo, finish the deploy flow, then open your fork’s **Settings → General → Danger zone → Change repository visibility** and set it to **private** (free personal accounts include private repos).
+
+**Private-first without a public fork:** skip the button, create an empty **private** repo, push this project’s contents (or use GitHub **Import** into a private repo), then connect that repo to Workers in the Cloudflare dashboard and deploy with Wrangler — same as [Deploy manually (CLI)](#deploy-manually-cli) below.
 
 ## Deploy to Cloudflare Workers
 
@@ -28,7 +30,7 @@ That said, a **public** repo exposes your namespace ID, Worker `name`, and any o
 
 Clicking the button will:
 
-1. Fork this repo into your GitHub account.
+1. Fork this repo into your GitHub account (GitHub creates a **public** fork; there is no “make it private” option in this flow — see [Repository visibility](#repository-visibility-recommended-private-after-deploy) above).
 2. Connect the fork to your Cloudflare account.
 3. Auto-provision the KV namespace declared in `wrangler.jsonc` (binding: `STRAVA_KV`).
 4. Install the cron trigger (`*/30 * * * *`).
