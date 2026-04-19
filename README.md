@@ -243,6 +243,17 @@ Fix: reinstall / re-authorize the GitHub App following Cloudflare's guide — [R
 
 Retry the deploy afterwards and it should pick up the repo.
 
+### Free tier: cron trigger limit (5 per account)
+
+On the **Workers free plan**, Cloudflare allows up to **five cron triggers per account** (paid plans allow more). See [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/). Each Worker with a `triggers.crons` entry in `wrangler.jsonc` consumes one of those slots **account-wide**, not per project — so old experiments and template deploys add up quickly.
+
+If deploy or sync setup fails with an error about **cron** / **scheduled** / **trigger** limits, or scheduled sync never runs even though deploy succeeded:
+
+1. In the [Cloudflare dashboard](https://dash.cloudflare.com/) → **Workers & Pages**, open Workers you no longer need and **delete** them (or remove their cron definitions and redeploy), until you are under the account limit.
+2. Retry deploy for this project.
+
+See Cloudflare’s [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Cron Triggers row) for current numbers; upgrading the account raises the cap if you need many scheduled Workers.
+
 ## Out of scope (for now)
 
 Multi-user support, per-activity detail views (segments, splits, streams), Strava webhooks, dark mode.
