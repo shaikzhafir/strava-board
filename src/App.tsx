@@ -4,7 +4,6 @@ import {
   type DailyActivityMap,
   type Me,
   type SetupStatus,
-  type Stats,
 } from "./lib/api";
 
 function emptyDailyMap(syncedAt: string | null): DailyActivityMap {
@@ -12,14 +11,12 @@ function emptyDailyMap(syncedAt: string | null): DailyActivityMap {
 }
 import { timeAgo } from "./lib/format";
 import ActivityHeatmap from "./components/ActivityHeatmap";
-import SummaryStats from "./components/SummaryStats";
 import SetupWizard from "./components/SetupWizard";
 import AdminAuth from "./components/AdminAuth";
 
 interface State {
   setup: SetupStatus | null;
   me: Me | null;
-  stats: Stats | null;
   daily: DailyActivityMap | null;
   loading: boolean;
   error: string | null;
@@ -28,7 +25,6 @@ interface State {
 const INITIAL: State = {
   setup: null,
   me: null,
-  stats: null,
   daily: null,
   loading: true,
   error: null,
@@ -45,15 +41,14 @@ export default function App() {
         setState({
           setup,
           me: null,
-          stats: null,
           daily: null,
           loading: false,
           error: null,
         });
         return;
       }
-      const [me, stats, daily] = await Promise.all([api.me(), api.stats(), api.dailyActivity()]);
-      setState({ setup, me, stats, daily, loading: false, error: null });
+      const [me, daily] = await Promise.all([api.me(), api.dailyActivity()]);
+      setState({ setup, me, daily, loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -66,6 +61,15 @@ export default function App() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const awaitingFirstSync =
+    !!state.setup?.claimed && !state.loading && !state.me?.athlete;
+
+  useEffect(() => {
+    if (!awaitingFirstSync) return;
+    const id = setInterval(load, 3000);
+    return () => clearInterval(id);
+  }, [awaitingFirstSync, load]);
 
   const onSync = async () => {
     setSyncing(true);
@@ -111,18 +115,14 @@ export default function App() {
     );
   }
 
-  const connected = !!state.me?.athlete;
-
-  if (!connected) {
+  if (!state.me?.athlete) {
     return (
       <div className="page center">
         <h1>Strava Activity Board</h1>
         <p className="muted">
-          Strava credentials are configured. Click below to authorize and claim this instance.
+          Importing your activities from Strava — this can take a minute on the
+          first sync. The page will refresh automatically.
         </p>
-        <a className="btn primary" href="/auth/strava/login">
-          Connect with Strava
-        </a>
       </div>
     );
   }
@@ -152,11 +152,6 @@ export default function App() {
       </header>
 
       {state.error && <div className="error">{state.error}</div>}
-
-      <section>
-        <h2>Summary</h2>
-        <SummaryStats stats={state.stats} />
-      </section>
 
       <section>
         <ActivityHeatmap
