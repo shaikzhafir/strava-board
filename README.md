@@ -16,6 +16,12 @@ To use the **Deploy to Cloudflare** flow (or to fork and deploy manually), you o
 
 You do **not** need a Strava app or API keys before deploy; the Worker starts empty and the in-app wizard walks you through Strava after the first deploy.
 
+### Repository visibility (recommended: private)
+
+The **KV namespace ID** in [`wrangler.jsonc`](wrangler.jsonc) is a Cloudflare **resource identifier**, not a secret like an API key. Strava tokens, session secrets, and app config live **inside** KV at runtime; they are not in git. Someone who only sees your namespace ID still cannot read or write KV without your Cloudflare account credentials.
+
+That said, a **public** repo exposes your namespace ID, Worker `name`, and any other edits you commit. For a personal instance, **default to a private GitHub repository**: after the deploy flow forks this project, open **Settings → General → Danger zone → Change repository visibility** and set the fork to **private** (free personal accounts include private repos). Alternatively, import or push to a new private repo if you prefer not to keep a public fork.
+
 ## Deploy to Cloudflare Workers
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shaikzhafir/strava-board)
