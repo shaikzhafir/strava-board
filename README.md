@@ -2,6 +2,8 @@
 
 A deployable-template for a personal Strava dashboard. One-time login claims the instance; the board (recent activities, summary stats, map previews, pace/distance charts) is publicly visible. A scheduled Worker syncs from the Strava API every 30 minutes so page loads never hit Strava directly.
 
+**Live example:** [strava-board-last.zadusz96.workers.dev](https://strava-board-last.zadusz96.workers.dev/) — a deployed instance of this template (read-only public board; admin flows are for the owner).
+
 - **Runtime:** Cloudflare Workers (with Assets + KV + Cron Triggers)
 - **Frontend:** React + Vite, bundled via `@cloudflare/vite-plugin`
 - **Storage:** Cloudflare KV (OAuth tokens + cached Strava data + app config)
