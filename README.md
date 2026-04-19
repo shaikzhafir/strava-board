@@ -7,6 +7,15 @@ A deployable-template for a personal Strava dashboard. One-time login claims the
 - **Storage:** Cloudflare KV (OAuth tokens + cached Strava data + app config)
 - **Setup:** zero deploy-time secrets — credentials are configured after deploy through an in-app wizard.
 
+## Prerequisites
+
+To use the **Deploy to Cloudflare** flow (or to fork and deploy manually), you only need:
+
+- A **[GitHub](https://github.com/signup)** account — the button forks this repo into your account so you own the copy.
+- A **[Cloudflare](https://dash.cloudflare.com/sign-up)** account — Workers, KV, and cron run there.
+
+You do **not** need a Strava app or API keys before deploy; the Worker starts empty and the in-app wizard walks you through Strava after the first deploy.
+
 ## Deploy to Cloudflare Workers
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shaikzhafir/strava-board)

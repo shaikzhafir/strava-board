@@ -6,6 +6,10 @@ import {
   type SetupStatus,
   type Stats,
 } from "./lib/api";
+
+function emptyDailyMap(syncedAt: string | null): DailyActivityMap {
+  return { byDate: {}, years: [], syncedAt: syncedAt ?? new Date().toISOString() };
+}
 import { timeAgo } from "./lib/format";
 import ActivityHeatmap from "./components/ActivityHeatmap";
 import SummaryStats from "./components/SummaryStats";
@@ -154,11 +158,11 @@ export default function App() {
         <SummaryStats stats={state.stats} />
       </section>
 
-      {state.daily && state.daily.years.length > 0 && (
-        <section>
-          <ActivityHeatmap map={state.daily} />
-        </section>
-      )}
+      <section>
+        <ActivityHeatmap
+          map={state.daily ?? emptyDailyMap(state.me?.lastSyncedAt ?? null)}
+        />
+      </section>
     </div>
   );
 }
