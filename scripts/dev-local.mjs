@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEV_VARS = resolve(ROOT, ".dev.vars");
-const EXAMPLE = ".dev.vars.example";
+const EXAMPLE = "local-dev.env.example";
 const REQUIRED = ["STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET"];
 
 function parseDotEnv(text) {

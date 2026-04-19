@@ -84,7 +84,7 @@ When you run **`npm run dev`**, the board header includes **refresh** so you can
 
 ### Optional: skip the wizard in local dev
 
-If you'd rather not run through the wizard on every `npm run dev`, create a gitignored `.dev.vars` at the repo root with:
+If you'd rather not run through the wizard on every `npm run dev`, create a gitignored `.dev.vars` at the repo root. You can start from `local-dev.env.example` (`cp local-dev.env.example .dev.vars` and fill in values). We intentionally do **not** ship `.dev.vars.example`: Cloudflare’s “Deploy to Workers” flow prompts for every key listed in that filename, which would incorrectly ask for Strava credentials during deploy instead of in the post-deploy wizard.
 
 ```sh
 STRAVA_CLIENT_ID=...
